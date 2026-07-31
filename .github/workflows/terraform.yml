@@ -7,6 +7,16 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 
 permissions:
   contents: read
@@ -62,7 +72,12 @@ jobs:
       - name: "Terraform Plan"
         if: github.event_name == 'pull_request'
         id: plan
-        run: terraform plan -no-color -input=false
+        run: |
+          terraform plan -no-color -input=false -out=tfplan
+          terraform show -no-color tfplan > plan_output.txt
+          echo "PLAN_OUTPUT<<EOF" >> $GITHUB_ENV
+          cat plan_output.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
         continue-on-error: true
 
       - name: "Post Plan to Pull Request"
@@ -92,7 +107,19 @@ jobs:
               body: output
             })
 
-      # --- Step 7: Terraform Apply (only on pushes to main branch) ---
-      - name: "Terraform Apply"
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -input=false
+      # --- Step 7: Terraform Apply or Destroy ---
+      - name: "Terraform Apply or Destroy"
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'workflow_dispatch'
+        run: |
+          ACTION="apply"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ACTION="${{ github.event.inputs.action }}"
+          fi
+          
+          if [ "$ACTION" == "destroy" ]; then
+            echo "🔥 Running Terraform Destroy..."
+            terraform destroy -auto-approve -input=false
+          else
+            echo "🚀 Running Terraform Apply..."
+            terraform apply -auto-approve -input=false
+          fi
