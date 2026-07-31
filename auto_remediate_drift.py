@@ -26,7 +26,7 @@ print(f"🔍 Currently tracked datasets in Terraform: {list(tracked_datasets)}")
 print("🛰️  Scanning live BigQuery datasets in GCP...")
 try:
     bq_list_proc = subprocess.run(
-        ["gcloud", "bq", "datasets", "list", f"--project={PROJECT_ID}", "--format=json"],
+        ["bq", "ls", f"--project_id={PROJECT_ID}", "--format=json"],
         capture_output=True,
         text=True,
         check=True
@@ -53,7 +53,7 @@ print(f"📝 Fetching JSON metadata for untracked dataset: {target_dataset}...")
 
 try:
     bq_desc_proc = subprocess.run(
-        ["gcloud", "bq", "datasets", "describe", target_dataset, f"--project={PROJECT_ID}", "--format=json"],
+        ["bq", "show", "--format=json", f"{PROJECT_ID}:{target_dataset}"],
         capture_output=True,
         text=True,
         check=True
