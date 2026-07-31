@@ -1,0 +1,85 @@
+name: "AI-Powered Drift Remediation"
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # Runs automatically every day at 08:00 UTC
+  workflow_dispatch: # Allows you to trigger the remediation manually in GitHub Actions UI on-demand!
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  remediate-drift:
+    name: "Detect & Auto-Remediate Drift"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      # --- Step 2: Authenticate to Google Cloud ---
+      # This logs in to GCP and automatically exports GOOGLE_APPLICATION_CREDENTIALS for Python Vertex AI
+      - name: "Authenticate to Google Cloud"
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # --- Step 3: Setup Google Cloud SDK ---
+      # Sets up gcloud CLI so our python script can query BQ datasets
+      - name: "Setup Google Cloud SDK"
+        uses: google-github-actions/setup-gcloud@v2
+
+      # --- Step 4: Setup Python ---
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # --- Step 5: Install Python Dependencies ---
+      - name: "Install Dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-cloud-aiplatform
+
+      # --- Step 6: Run AI Remediation Script ---
+      # Runs our python script which queries BQ, calls Gemini, and generates drifted_resources.tf if drift exists
+      - name: "Run AI Self-Healing Script"
+        id: run-script
+        run: |
+          chmod +x auto_remediate_drift.py
+          python auto_remediate_drift.py
+
+      # --- Step 7: Automatically Create Pull Request if Drift is Remediated ---
+      # This action automatically commits the new drifted_resources.tf, pushes a new branch, and opens a PR!
+      - name: "Create Pull Request for Drift Fix"
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: auto-import manually created dataset via Gemini AI"
+          branch: "gemini-drift-remediation"
+          delete-branch: true
+          title: "🤖 Gemini Drift Remediation: Auto-Import Manually Created Resources"
+          body: |
+            ## 🤖 AI Self-Healing Infrastructure Report
+            
+            **Type:** Configuration Drift Remediation
+            **Orchestrator:** GitHub Actions
+            **LLM Specialist:** Gemini 1.5 Flash (Vertex AI)
+            
+            ### What happened?
+            An untracked BigQuery dataset was manually created via the GCP Console UI.
+            
+            ### AI Actions Performed:
+            1. Scanned GCP and discovered the drifted dataset.
+            2. Extracted the live JSON schema configuration.
+            3. Gemini translated the raw metadata into standard, clean Terraform HCL code.
+            4. Generated a declarative `import` block to safely bridge your TF state.
+            5. Saved code to `drifted_resources.tf` and opened this PR.
+            
+            ### Action Required:
+            Simply review the changes in `drifted_resources.tf` and click **Merge**! The core Terraform CI/CD pipeline will automatically run and reconcile your state with GCP.
+          labels: |
+            terraform
+            drift-detection
+            ai-remediation
