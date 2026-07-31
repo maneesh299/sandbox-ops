@@ -1,0 +1,10 @@
+# Local terraform directories
+.terraform/*
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl
+
+# Local sensitive credential keys
+github_sa_key.json
+*.json

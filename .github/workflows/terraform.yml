@@ -1,0 +1,98 @@
+name: "Terraform CI/CD"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform:
+    name: "Terraform Plan & Apply"
+    runs-on: ubuntu-latest
+
+    # Configure environment variables
+    env:
+      # If using OIDC (Workload Identity Federation):
+      # GCP_WORKLOAD_IDENTITY_PROVIDER: 'projects/YOUR_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL/providers/YOUR_PROVIDER'
+      # GCP_SERVICE_ACCOUNT: 'github-actions-runner@maneesh-mlops-sandbox-01.iam.gserviceaccount.com'
+      
+      # If using Service Account Key, save JSON key inside GitHub Secrets as: GCP_SA_KEY
+      GCP_PROJECT_ID: "maneesh-mlops-sandbox-01"
+
+    steps:
+      - name: "Checkout Code"
+        uses: actions/checkout@v4
+
+      # --- Step 2: Authenticate to Google Cloud ---
+      # Option A: Modern & Secure (OIDC / Workload Identity Federation)
+      # - name: "Authenticate to Google Cloud (OIDC)"
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      #     service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      # Option B: Quick Sandboxing (using GitHub Repository Secret GCP_SA_KEY)
+      - name: "Authenticate to Google Cloud"
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # --- Step 3: Setup Terraform ---
+      - name: "Setup Terraform"
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      # --- Step 4: Terraform Format Check ---
+      - name: "Terraform Format"
+        run: terraform fmt -check
+
+      # --- Step 5: Terraform Init ---
+      - name: "Terraform Init"
+        run: terraform init -input=false
+
+      # --- Step 6: Terraform Plan (on Pull Requests) ---
+      - name: "Terraform Plan"
+        if: github.event_name == 'pull_request'
+        id: plan
+        run: terraform plan -no-color -input=false
+        continue-on-error: true
+
+      - name: "Post Plan to Pull Request"
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌
+            #### Terraform Initialization ⚙️
+            #### Terraform Plan 📖
+
+            <details><summary>Show Plan Output</summary>
+
+            \`\`\`hcl
+            ${process.env.PLAN_OUTPUT}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${context.actor}, Action: \`${context.eventName}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      # --- Step 7: Terraform Apply (only on pushes to main branch) ---
+      - name: "Terraform Apply"
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -input=false
