@@ -47,7 +47,6 @@ jobs:
       - name: "Run AI Self-Healing Script"
         id: run-script
         run: |
-          chmod +x auto_remediate_drift.py
           python auto_remediate_drift.py
 
       # --- Step 7: Automatically Create Pull Request if Drift is Remediated ---
@@ -59,9 +58,9 @@ jobs:
           commit-message: "chore: auto-import manually created dataset via Gemini AI"
           branch: "gemini-drift-remediation"
           delete-branch: true
-          title: "🤖 Gemini Drift Remediation: Auto-Import Manually Created Resources"
+          title: "Gemini Drift Remediation: Auto-Import Manually Created Resources"
           body: |
-            ## 🤖 AI Self-Healing Infrastructure Report
+            ## AI Drift Remediation Report
             
             **Type:** Configuration Drift Remediation
             **Orchestrator:** GitHub Actions
@@ -70,7 +69,7 @@ jobs:
             ### What happened?
             An untracked BigQuery dataset was manually created via the GCP Console UI.
             
-            ### AI Actions Performed:
+            ### Actions Performed:
             1. Scanned GCP and discovered the drifted dataset.
             2. Extracted the live JSON schema configuration.
             3. Gemini translated the raw metadata into standard, clean Terraform HCL code.

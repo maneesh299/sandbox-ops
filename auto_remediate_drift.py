@@ -20,10 +20,10 @@ for tf_file in existing_tf_files:
     for m in re.finditer(r'dataset_id\s*=\s*"([^"]+)"', content):
         tracked_datasets.add(m.group(1))
 
-print(f"🔍 Currently tracked datasets in Terraform: {list(tracked_datasets)}")
+print(f"[INFO] Currently tracked datasets in Terraform: {list(tracked_datasets)}")
 
 # 2. Query GCP for ALL active BigQuery datasets in the project
-print("🛰️  Scanning live BigQuery datasets in GCP...")
+print("[INFO] Scanning live BigQuery datasets in GCP...")
 try:
     bq_list_proc = subprocess.run(
         ["bq", "ls", f"--project_id={PROJECT_ID}", "--format=json"],
@@ -33,23 +33,23 @@ try:
     )
     live_datasets_data = json.loads(bq_list_proc.stdout)
 except Exception as e:
-    print(f"❌ Failed to query BigQuery datasets: {e}")
+    print(f"[ERROR] Failed to query BigQuery datasets: {e}")
     sys.exit(1)
 
 live_datasets = [d.get("datasetReference", {}).get("datasetId") for d in live_datasets_data]
-print(f"🌐 Live datasets found in GCP: {live_datasets}")
+print(f"[INFO] Live datasets found in GCP: {live_datasets}")
 
 # 3. Detect untracked (drifted) datasets
 drifted_datasets = [d for d in live_datasets if d and d not in tracked_datasets]
 if not drifted_datasets:
-    print("✅ No drifted datasets detected! Everything in GCP matches your Terraform config.")
+    print("[SUCCESS] No drifted datasets detected! Everything in GCP matches your Terraform config.")
     sys.exit(0)
 
-print(f"⚠️  Drift Detected! The following datasets are NOT in Terraform: {drifted_datasets}")
+print(f"[WARNING] Drift Detected! The following datasets are NOT in Terraform: {drifted_datasets}")
 
 # 4. Fetch JSON metadata for the first drifted dataset to remediate
 target_dataset = drifted_datasets[0]
-print(f"📝 Fetching JSON metadata for untracked dataset: {target_dataset}...")
+print(f"[INFO] Fetching JSON metadata for untracked dataset: {target_dataset}...")
 
 try:
     bq_desc_proc = subprocess.run(
@@ -60,11 +60,11 @@ try:
     )
     dataset_metadata_str = bq_desc_proc.stdout
 except Exception as e:
-    print(f"❌ Failed to describe dataset: {e}")
+    print(f"[ERROR] Failed to describe dataset: {e}")
     sys.exit(1)
 
 # 5. Call Gemini AI via Vertex AI to generate the Terraform code
-print("🧠 Sending metadata to Vertex AI Gemini Pro...")
+print("[INFO] Sending metadata to Vertex AI Gemini...")
 try:
     import vertexai
     from vertexai.generative_models import GenerativeModel
@@ -102,20 +102,20 @@ Do not write explanations, markdown prose, or conversational preambles.
         generated_code = "\n".join(lines).strip()
 
 except ImportError:
-    print("❌ 'google-cloud-aiplatform' package is not installed. Run 'pip install google-cloud-aiplatform'")
+    print("[ERROR] 'google-cloud-aiplatform' package is not installed. Run 'pip install google-cloud-aiplatform'")
     sys.exit(1)
 except Exception as e:
-    print(f"❌ Failed to call Gemini API: {e}")
+    print(f"[ERROR] Failed to call Gemini API: {e}")
     sys.exit(1)
 
 # 6. Write the generated code to a new drifted_resources.tf file
 drift_file = tf_dir / "drifted_resources.tf"
-print(f"💾 Saving auto-generated remediation code to {drift_file.name}...")
+print(f"[INFO] Saving auto-generated remediation code to {drift_file.name}...")
 try:
     drift_file.write_text(generated_code + "\n", encoding="utf-8")
-    print(f"🎉 Success! Review the generated code in '{drift_file.name}' and push to GitHub to auto-import and align state!")
+    print(f"[SUCCESS] Review the generated code in '{drift_file.name}' and push to GitHub to auto-import and align state!")
     print("\n--- Generated Code Preview ---")
     print(generated_code)
     print("------------------------------")
 except Exception as e:
-    print(f"❌ Failed to save file: {e}")
+    print(f"[ERROR] Failed to save file: {e}")
