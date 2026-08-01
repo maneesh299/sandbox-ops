@@ -69,10 +69,10 @@ try:
     import vertexai
     from vertexai.generative_models import GenerativeModel
 
-    # Initialize Vertex AI in a primary region where Gemini 1.5 Flash is supported (e.g. us-central1)
-    vertexai.init(project=PROJECT_ID, location="us-central1")
-    # Using gemini-1.5-flash for rapid, lightweight generation
-    model = GenerativeModel("gemini-1.5-flash")
+    # Initialize Vertex AI in your local europe-west2 (London) region using the latest Gemini 2.5 Flash model
+    vertexai.init(project=PROJECT_ID, location=LOCATION)
+    # Using gemini-2.5-flash which is fully supported on the London endpoint
+    model = GenerativeModel("gemini-2.5-flash")
 
     prompt = f"""
 You are a Principal Cloud and Infrastructure Engineer specializing in Google Cloud and Terraform (IaC).
