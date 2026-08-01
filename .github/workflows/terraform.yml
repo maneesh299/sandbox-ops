@@ -86,9 +86,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const output = `#### Terraform Format and Style 🖌
-            #### Terraform Initialization ⚙️
-            #### Terraform Plan 📖
+            const output = `#### Terraform Format and Style
+            #### Terraform Initialization
+            #### Terraform Plan
 
             <details><summary>Show Plan Output</summary>
 
@@ -117,9 +117,9 @@ jobs:
           fi
           
           if [ "$ACTION" == "destroy" ]; then
-            echo "🔥 Running Terraform Destroy..."
+            echo "Running Terraform Destroy..."
             terraform destroy -auto-approve -input=false
           else
-            echo "🚀 Running Terraform Apply..."
+            echo "Running Terraform Apply..."
             terraform apply -auto-approve -input=false
           fi

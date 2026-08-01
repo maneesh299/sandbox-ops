@@ -69,7 +69,8 @@ try:
     import vertexai
     from vertexai.generative_models import GenerativeModel
 
-    vertexai.init(project=PROJECT_ID, location=LOCATION)
+    # Initialize Vertex AI in a primary region where Gemini 1.5 Flash is supported (e.g. us-central1)
+    vertexai.init(project=PROJECT_ID, location="us-central1")
     # Using gemini-1.5-flash for rapid, lightweight generation
     model = GenerativeModel("gemini-1.5-flash")
 
